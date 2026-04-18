@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { fetchAuthSession } from 'aws-amplify/auth'
 
 const api = axios.create({
     baseURL: '/api/v1',
@@ -6,10 +7,21 @@ const api = axios.create({
 })
 
 // Attach JWT to every request
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`
+api.interceptors.request.use(async (config) => {
+    try {
+        // Try to get Amplify token first
+        const session = await fetchAuthSession()
+        const token = session.tokens?.idToken?.toString()
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`
+            return config
+        }
+    } catch (e) {
+        // Fallback to localStorage for custom auth
+        const localToken = localStorage.getItem('token')
+        if (localToken) {
+            config.headers.Authorization = `Bearer ${localToken}`
+        }
     }
     return config
 })
@@ -49,7 +61,19 @@ export const generateProposal = (rfpId: string, context: string) =>
     api.post('/rfp/generate-proposal', { rfp_id: rfpId, additional_context: context })
 
 // ── AWS Lambda Direct API ────────────────────────────
-const AWS_API_URL = 'https://fdg9au4wfh.execute-api.ap-south-1.amazonaws.com/test1'
+const AWS_API_URL = 'https://n3dh7mh3mi.execute-api.ap-south-1.amazonaws.com/rfp'
+
+/**
+ * Get JWT token from Amplify or localStorage
+ */
+async function getToken(): Promise<string> {
+    try {
+        const session = await fetchAuthSession()
+        return session.tokens?.idToken?.toString() || localStorage.getItem('token') || ''
+    } catch (e) {
+        return localStorage.getItem('token') || ''
+    }
+}
 
 /**
  * Analyze RFP directly via AWS Lambda API Gateway
@@ -57,9 +81,13 @@ const AWS_API_URL = 'https://fdg9au4wfh.execute-api.ap-south-1.amazonaws.com/tes
  * @returns Analysis result from Lambda with overview, requirements, deadlines, etc.
  */
 export const analyzeRFPDirect = async (s3Key: string) => {
+    const token = await getToken()
     const response = await fetch(AWS_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+            "Content-Type": "application/json",
+            "Authorization": token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({
             action: "analyze",
             s3_key: s3Key
@@ -76,9 +104,13 @@ export const analyzeRFPDirect = async (s3Key: string) => {
  * @returns Q&A result from Lambda with answer, sources, and confidence
  */
 export const askQuestionDirect = async (question: string, s3Key?: string) => {
+    const token = await getToken()
     const response = await fetch(AWS_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+            "Content-Type": "application/json",
+            "Authorization": token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({
             action: "qa",
             question: question,
@@ -90,30 +122,50 @@ export const askQuestionDirect = async (question: string, s3Key?: string) => {
 }
 
 export const analyze = async (s3Key: string) => {
+    const token = await getToken()
     const res = await fetch(AWS_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ action: 'analyze', s3_key: s3Key })
     })
     return res.json()
 }
 
 export const qa = async (question: string, s3Key?: string) => {
+    const token = await getToken()
     const res = await fetch(AWS_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ action: 'qa', question, s3_key: s3Key })
     })
     return res.json()
 }
 
 export const draft = async (s3Key: string, companyName = 'VeBuIn', hourlyRate = '5000', currency = 'JPY') => {
+    const token = await getToken()
     const res = await fetch(AWS_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ action: 'draft', s3_key: s3Key, company_name: companyName, hourly_rate: hourlyRate, currency })
     })
     return res.json()
+}
+
+export const uploadRFP = async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/rfp/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
 }
 
 // ── History ───────────────────────────────────────────

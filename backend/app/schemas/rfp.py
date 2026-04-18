@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, Any, Literal
-
+from fastapi import UploadFile, File
+import boto3
 
 class RFPAnalysisRequest(BaseModel):
     s3_key: str
@@ -60,3 +61,23 @@ class ProposalGenerationResponse(BaseModel):
     success: bool
     proposal: Optional[str] = None
     error: Optional[str] = None
+
+@router.post("/upload")
+async def upload_rfp(file: UploadFile = File(...)):
+    """Upload RFP file to S3 and return the S3 key"""
+    try:
+        s3_client = boto3.client('s3')
+        bucket = 'your-bucket-name'
+        s3_key = f"rfp-uploads/{file.filename}"
+        
+        # Upload to S3
+        await file.seek(0)
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=s3_key,
+            Body=await file.read()
+        )
+        
+        return {"success": True, "s3_key": s3_key}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
