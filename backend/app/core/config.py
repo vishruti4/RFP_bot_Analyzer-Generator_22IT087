@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     AWS_S3_BUCKET: str = "your-bucket-name"
     AWS_REGION: str = "ap-south-1"
     DEBUG: bool = True
+    COGNITO_USER_POOL_ID: str = ""
+    COGNITO_CLIENT_ID: str = ""
+    COGNITO_CLIENT_SECRET: str = ""
 
     class Config:
         env_file = ".env"

@@ -13,12 +13,9 @@ class UserLogin(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: int
+    id: str
     name: str
     email: str
-
-    class Config:
-        from_attributes = True
 
 
 class TokenResponse(BaseModel):

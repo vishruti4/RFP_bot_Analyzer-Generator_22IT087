@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { cognitoSignIn } from '../services/cognito'
 import { useAuthStore } from '../store/authStore'
-// import { login } from '../services/api'  // ← uncomment when backend is ready
 
 export default function LoginPage() {
     const navigate = useNavigate()
@@ -15,20 +15,16 @@ export default function LoginPage() {
         e.preventDefault()
         setError('')
         setLoading(true)
-        // ── MOCK LOGIN (remove when backend is ready) ──
-        await new Promise((r) => setTimeout(r, 800))
-        if (!email || !password) { setError('Please enter email and password.'); setLoading(false); return }
-        setAuth({ id: '1', name: email.split('@')[0], email }, 'mock-token-ui-test')
-        navigate('/rfp-bot')
-        setLoading(false)
-        // ── Real login (uncomment when backend ready) ──
-        // try {
-        //   const res = await login(email, password)
-        //   setAuth(res.data.user, res.data.access_token)
-        //   navigate('/rfp-bot')
-        // } catch (err: any) {
-        //   setError(err.response?.data?.detail || 'Invalid email or password.')
-        // } finally { setLoading(false) }
+        try {
+            const res = await cognitoSignIn(email, password)
+            const idToken = res.AuthenticationResult.IdToken
+            setAuth({ id: email, name: email.split('@')[0], email }, idToken)
+            navigate('/rfp-bot')
+        } catch (err: any) {
+            setError(err.message || 'Invalid email or password.')
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (

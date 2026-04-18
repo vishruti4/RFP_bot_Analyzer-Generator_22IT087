@@ -5,9 +5,9 @@ import RFPBotPage from './pages/RFPBotPage'
 import HistoryPage from './pages/HistoryPage'
 import ProtectedRoute from './components/Common/ProtectedRoute'
 
-function App() {
+export default function App() {
     return (
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
@@ -20,5 +20,3 @@ function App() {
         </BrowserRouter>
     )
 }
-
-export default App

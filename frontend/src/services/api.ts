@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { fetchAuthSession } from 'aws-amplify/auth'
 
 const api = axios.create({
     baseURL: '/api/v1',
@@ -7,22 +6,9 @@ const api = axios.create({
 })
 
 // Attach JWT to every request
-api.interceptors.request.use(async (config) => {
-    try {
-        // Try to get Amplify token first
-        const session = await fetchAuthSession()
-        const token = session.tokens?.idToken?.toString()
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`
-            return config
-        }
-    } catch (e) {
-        // Fallback to localStorage for custom auth
-        const localToken = localStorage.getItem('token')
-        if (localToken) {
-            config.headers.Authorization = `Bearer ${localToken}`
-        }
-    }
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token')
+    if (token) config.headers.Authorization = `Bearer ${token}`
     return config
 })
 
@@ -61,18 +47,13 @@ export const generateProposal = (rfpId: string, context: string) =>
     api.post('/rfp/generate-proposal', { rfp_id: rfpId, additional_context: context })
 
 // ── AWS Lambda Direct API ────────────────────────────
-const AWS_API_URL = 'https://n3dh7mh3mi.execute-api.ap-south-1.amazonaws.com/rfp'
+const AWS_API_URL = import.meta.env.VITE_API_URL || 'https://n3dh7mh3mi.execute-api.ap-south-1.amazonaws.com/rfp'
 
 /**
  * Get JWT token from Amplify or localStorage
  */
 async function getToken(): Promise<string> {
-    try {
-        const session = await fetchAuthSession()
-        return session.tokens?.idToken?.toString() || localStorage.getItem('token') || ''
-    } catch (e) {
-        return localStorage.getItem('token') || ''
-    }
+    return localStorage.getItem('token') || ''
 }
 
 /**
